@@ -104,6 +104,7 @@ def generate_dataset( num_samples=NUM_SAMPLES, seed=RANDOM_SEED
         'level_task_progress': level_task_progress,
         'task_spawn_timer': task_spawn_timer,
         'recommended_difficulty': recommended_difficulty,
+        'pressure_score': pressure_score,
         'difficulty_category': difficulty_category
     })
 
