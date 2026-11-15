@@ -38,8 +38,8 @@ def generate_dataset( num_samples=NUM_SAMPLES, seed=RANDOM_SEED
     average_reaction_enemy_time = np.clip(20 - 5 * player_skill + 10 * game_pressure + rng.normal(0, 1, num_samples), 0, 20)
     # average reaction time it takes for a player to deal with a task
     average_reaction_task_time = np.clip(10 - 5 * player_skill + 10 * game_pressure + rng.normal(0, 1, num_samples), 0, 20)
-    # number of continuous successful completions of a level
-    player_success_rate = np.clip(np.round(3 + 3 * player_skill - 4 * game_pressure + rng.normal(0, 1, num_samples)), 0, 5).astype(int)
+    # number of continuous successful completions of a level in percentage
+    player_success_rate = np.clip(np.round(40 + 30 * player_skill - 40 * game_pressure + rng.normal(0, 5, num_samples)), 0, 100).astype(int)
     # time the player spent hiding from enemies during the level
     average_hiding_time = np.clip(15 - 10 * player_skill + 20 * game_pressure + rng.normal(0, 5, num_samples), 0, 30)
     # average time the player spent running around the level
@@ -53,13 +53,13 @@ def generate_dataset( num_samples=NUM_SAMPLES, seed=RANDOM_SEED
 
     # ENEMY FEATURES
     # number of spawned enemies at once during a delta time  of the game
-    enemy_count = np.clip(np.round(4 + 2 * game_pressure - 4 * player_skill + rng.normal(0, 1, num_samples)), 0, 8).astype(int)
+    enemy_count = np.clip(np.round(4 + 2 * game_pressure - 4 * player_skill + rng.normal(0, 1, num_samples)), 0, 10).astype(int)
     # rate with which enemies spawn during the level sequence
-    enemy_spawn_rate = np.clip(15 - 10 * game_pressure + rng.normal(0, 3, num_samples), 0, 30)
+    enemy_spawn_rate = np.clip(5 + 20 * game_pressure + rng.normal(0, 3, num_samples), 0, 30)
     # average time it takes an enemy chasing the player
     average_chase_time = np.clip(20 - 10 * player_skill + 20 * game_pressure + rng.normal(0, 5, num_samples), 0, 30)
     # average time it takes for an enemy to notice the player after spawning
-    average_aggression_time = np.clip(10 - 5 * player_skill + 10 * game_pressure + rng.normal(0, 2, num_samples), 0, 20)
+    average_detection_time = np.clip(10 - 5 * player_skill + 10 * game_pressure + rng.normal(0, 2, num_samples), 0, 20)
 
     # ENVIROMENTAL AND PROGRESS FEATURES
     # define parts of the room as dangerous and safe areas, e.g under the bed is safer than the middle of the room
@@ -71,14 +71,15 @@ def generate_dataset( num_samples=NUM_SAMPLES, seed=RANDOM_SEED
 
     # TARGET: RECOMMENDED DIFFICULTY
     # skill score estimation based on observed player performance and game pressure, we can use this score to recommend a difficulty level for the player
-    skill_score = (0.35 * player_success_rate + 0.25 * (player_success_rate /10) + 0.20 * (average_reaction_task_time / 10) + 0.15 * (average_reaction_enemy_time / 10) + 0.10 * area_danger_level)
+    skill_score = (0.45 * (player_success_rate / 100) + 0.35 * (level_task_progress / 100) + 0.30 * (player_health / 100) - 0.20 * (average_reaction_enemy_time / 20))
     # pressure score estimation based on observable game features
-    pressure_score = (0.35 * (player_death_count / 10) + 0.30 * (enemy_count / 10) + 0.25 * (enemy_spawn_rate / 10) + 0.20 * (task_spawn_timer / 10) + 0.15 * (enemy_spawn_rate / 10) + 0.10 * area_danger_level)
+    pressure_score = (0.40 * (player_death_count / 10) + 0.25 * (enemy_count / 10) - 0.20 * (task_spawn_timer / 30) - 0.25 * (enemy_spawn_rate / 30) + 0.20 * area_danger_level)
     # recommended difficulty score based on the skill and pressure scores, we can use this score to recommend a difficulty level for the player
-    recommended_difficulty = np.clip(100 * (0.95 * skill_score - 0.60 * pressure_score) + rng.normal(0, 3, num_samples), 0, 100)
+    recommended_difficulty = np.clip(100 * (0.65 * skill_score + 0.35 * (1 - pressure_score)) + rng.normal(0, 10, num_samples), 0, 100)
 
     # TARGET: DIFFICULTY CATEGORY
-    difficulty_category = pd.cut(recommended_difficulty, bins=[0, 25, 50, 75, 100], labels=['Easy', 'Normal', 'Hard', 'Extreme'])
+    # include lowest = True to include the lowest value in the first bin, which is important for our case since we want to include the lowest value of 0 in the 'Easy' category
+    difficulty_category = pd.cut(recommended_difficulty, bins=[0, 25, 50, 75, 100], labels=['Easy', 'Normal', 'Hard', 'Extreme'], include_lowest=True)
 
     # CREATE DATAFRAME
 
@@ -99,12 +100,11 @@ def generate_dataset( num_samples=NUM_SAMPLES, seed=RANDOM_SEED
         'enemy_count': enemy_count,
         'enemy_spawn_rate': enemy_spawn_rate,
         'average_chase_time': average_chase_time,
-        'average_aggression_time': average_aggression_time,
+        'average_detection_time': average_detection_time,
         'area_danger_level': area_danger_level,
         'level_task_progress': level_task_progress,
         'task_spawn_timer': task_spawn_timer,
         'recommended_difficulty': recommended_difficulty,
-        'pressure_score': pressure_score,
         'difficulty_category': difficulty_category
     })
 
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     # save the dataset to a csv file #
     dataset.to_csv(OUTPUT_FILE, index=False)
     print("Dataset generated successfully")
-    # prints legth of the dataset to verify the number of samples generated
+    # prints length of the dataset to verify the number of samples generated
     print(f"Number of samples: {len(dataset)}")
     # prints the number of columns in the dataset to verify the number of features generated
     print(f"Number of columns: {len(dataset.columns)}")
@@ -126,7 +126,7 @@ if __name__ == "__main__":
     print("\nFirst 5 records:")
     print(dataset.head())
 
-    print("\nDifficulty catergory distribution:")
+    print("\nDifficulty category distribution:")
     print(dataset['difficulty_category'].value_counts())
 
     print("\nDataset Info:")
