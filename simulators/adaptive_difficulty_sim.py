@@ -71,11 +71,11 @@ def generate_dataset( num_samples=NUM_SAMPLES, seed=RANDOM_SEED
 
     # TARGET: RECOMMENDED DIFFICULTY
     # skill score estimation based on observed player performance and game pressure, we can use this score to recommend a difficulty level for the player
-    skill_score = (0.35 * player_success_rate + 0.25 * (enemy_count /10) + 0.20 * (average_aggression_time / 100) + 0.15 * (average_chase_time / 10) + 0.10 * area_danger_level)
+    skill_score = (0.35 * player_success_rate + 0.25 * (player_success_rate /10) + 0.20 * (average_reaction_task_time / 10) + 0.15 * (average_reaction_enemy_time / 10) + 0.10 * area_danger_level)
     # pressure score estimation based on observable game features
-    pressure_score = (0.30 * (player_death_count / 20) + 0.25 * (enemy_count / 10) + 0.20 * (average_chase_time / 100) + 0.15 * (task_spawn_timer / 100) + 0.10 * area_danger_level)
+    pressure_score = (0.35 * (player_death_count / 10) + 0.30 * (enemy_count / 10) + 0.25 * (enemy_spawn_rate / 10) + 0.20 * (task_spawn_timer / 10) + 0.15 * (enemy_spawn_rate / 10) + 0.10 * area_danger_level)
     # recommended difficulty score based on the skill and pressure scores, we can use this score to recommend a difficulty level for the player
-    recommended_difficulty = np.clip(100 * (0.15 + 0.95 * skill_score - 0.50 * pressure_score + 0.10 * player_success_rate) + rng.normal(0, 3, num_samples), 0, 100)
+    recommended_difficulty = np.clip(100 * (0.95 * skill_score - 0.60 * pressure_score) + rng.normal(0, 3, num_samples), 0, 100)
 
     # TARGET: DIFFICULTY CATEGORY
     difficulty_category = pd.cut(recommended_difficulty, bins=[0, 25, 50, 75, 100], labels=['Easy', 'Normal', 'Hard', 'Extreme'])
