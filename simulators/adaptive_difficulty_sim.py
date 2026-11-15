@@ -34,22 +34,14 @@ def generate_dataset( num_samples=NUM_SAMPLES, seed=RANDOM_SEED
     player_noise = np.clip(np.round(3 - 3 * player_skill + 2 * game_pressure + rng.normal(0, 1, num_samples)), 0, 3).astype(int)
     # number of energy / stamina the player has
     player_energy = np.clip(np.round(100 - 20 * game_pressure + 10 * player_skill + rng.normal(0, 10, num_samples)), 0, 100).astype(int)
-    # average reaction time it takes for a player to deal with a spawned enemy
-    average_reaction_enemy_time = np.clip(20 - 5 * player_skill + 10 * game_pressure + rng.normal(0, 1, num_samples), 0, 20)
-    # average reaction time it takes for a player to deal with a task
-    average_reaction_task_time = np.clip(10 - 5 * player_skill + 10 * game_pressure + rng.normal(0, 1, num_samples), 0, 20)
+    # average time it takes for a player to deal with a spawned enemy
+    average_enemy_dealt_time = np.clip(20 - 5 * player_skill + 10 * game_pressure + rng.normal(0, 1, num_samples), 0, 20)
+    # average time it takes for a player to deal with a task
+    average_task_dealt_time = np.clip(10 - 5 * player_skill + 10 * game_pressure + rng.normal(0, 1, num_samples), 0, 20)
     # number of continuous successful completions of a level in percentage
     player_success_rate = np.clip(np.round(40 + 30 * player_skill - 40 * game_pressure + rng.normal(0, 5, num_samples)), 0, 100).astype(int)
     # time the player spent hiding from enemies during the level
     average_hiding_time = np.clip(15 - 10 * player_skill + 20 * game_pressure + rng.normal(0, 5, num_samples), 0, 30)
-    # average time the player spent running around the level
-    average_running_time = np.clip(60 - 20 * player_skill + 30 * game_pressure + rng.normal(0, 10, num_samples), 0, 120)
-    # average time the player spent walking around the level
-    average_walking_time = np.clip(45 - 15 * player_skill + 10 * game_pressure + rng.normal(0, 5, num_samples), 0, 90)
-    # average time the player spent crouching during the level
-    average_crouching_time = np.clip(60 - 30 * player_skill + 20 * game_pressure + rng.normal(0, 5, num_samples), 0, 60)
-    # average time the player spent jumping + on_air during the level
-    average_jumping_time = np.clip(30 - 10 * player_skill + 10 * game_pressure + rng.normal(0, 1, num_samples), 0, 30)
 
     # ENEMY FEATURES
     # number of spawned enemies at once during a delta time  of the game
@@ -70,10 +62,64 @@ def generate_dataset( num_samples=NUM_SAMPLES, seed=RANDOM_SEED
     task_spawn_timer = np.clip(30 - 10 * game_pressure + rng.normal(0, 5, num_samples), 0, 60)
 
     # TARGET: RECOMMENDED DIFFICULTY
-    # skill score estimation based on observed player performance and game pressure, we can use this score to recommend a difficulty level for the player
-    skill_score = (0.45 * (player_success_rate / 100) + 0.35 * (level_task_progress / 100) + 0.30 * (player_health / 100) - 0.20 * (average_reaction_enemy_time / 20))
-    # pressure score estimation based on observable game features
-    pressure_score = (0.40 * (player_death_count / 10) + 0.25 * (enemy_count / 10) - 0.20 * (task_spawn_timer / 30) - 0.25 * (enemy_spawn_rate / 30) + 0.20 * area_danger_level)
+
+    # Normalized list of skill features (at 0 we have poor skill and at 1 we have expert skill)
+    
+    skill_feature_list = {
+        "player_health": player_health / 100,
+        "player_death_count": 1 - (player_death_count / 10),
+        "time_survived": time_survived / 300,
+        "player_noise": 1 - (player_noise / 3),
+        "player_energy": player_energy / 100,
+        "average_enemy_dealt_time": 1 - (average_enemy_dealt_time / 20),
+        "average_task_dealt_time": 1 - (average_task_dealt_time / 20),
+        "player_success_rate": player_success_rate / 100,
+        "average_hiding_time": 1 - (average_hiding_time / 30),
+        "average_chase_time": 1 - (average_chase_time / 30),
+        "level_task_progress": level_task_progress / 100
+    }
+
+    skill_score = (
+        0.20 * skill_feature_list["player_health"]
+        + 0.08 * skill_feature_list["player_death_count"]
+        + 0.08 * skill_feature_list["time_survived"]\
+        + 0.05 * skill_feature_list["player_noise"]
+        + 0.05 * skill_feature_list["player_energy"]
+        + 0.08 * skill_feature_list["average_enemy_dealt_time"]
+        + 0.07 * skill_feature_list["average_task_dealt_time"]
+        + 0.17 * skill_feature_list["player_success_rate"]
+        + 0.04 * skill_feature_list["average_hiding_time"]
+        + 0.04 * skill_feature_list["average_chase_time"]
+        + 0.15 * skill_feature_list["level_task_progress"]
+    )
+
+
+    # Nomalized list of pressure features (at 0 we have low pressure and at 1 we have high pressure)
+    pressure_feature_list = {
+        "player_death_count": player_death_count / 10,
+        "time_survived": 1 - (time_survived / 300),
+        "player_noise": player_noise / 3,
+        "enemy_count": enemy_count / 10,
+        "average_hiding_time": average_hiding_time / 30,
+        "task_spawn_timer": 1 - (task_spawn_timer / 60),
+        "enemy_spawn_rate": enemy_spawn_rate / 30,
+        "average_chase_time": average_chase_time / 30,
+        "average_detection_time": 1 - (average_detection_time / 20),
+        "area_danger_level": area_danger_level
+    }
+    
+    pressure_score = (
+        0.10 * pressure_feature_list["player_death_count"]
+        + 0.05 * pressure_feature_list["time_survived"]
+        + 0.05 * pressure_feature_list["player_noise"]
+        + 0.15 * pressure_feature_list["enemy_count"]
+        + 0.05 * pressure_feature_list["average_hiding_time"]
+        + 0.10 * pressure_feature_list["task_spawn_timer"]
+        + 0.15 * pressure_feature_list["enemy_spawn_rate"]
+        + 0.10 * pressure_feature_list["average_chase_time"]
+        + 0.10 * pressure_feature_list["average_detection_time"]
+        + 0.15 * pressure_feature_list["area_danger_level"]
+    )
     # recommended difficulty score based on the skill and pressure scores, we can use this score to recommend a difficulty level for the player
     recommended_difficulty = np.clip(100 * (0.65 * skill_score + 0.35 * (1 - pressure_score)) + rng.normal(0, 10, num_samples), 0, 100)
 
@@ -89,14 +135,10 @@ def generate_dataset( num_samples=NUM_SAMPLES, seed=RANDOM_SEED
         'time_survived': time_survived,
         'player_noise': player_noise,
         'player_energy': player_energy,
-        'average_reaction_enemy_time': average_reaction_enemy_time,
-        'average_reaction_task_time': average_reaction_task_time,
+        'average_enemy_dealt_time': average_enemy_dealt_time,
+        'average_task_dealt_time': average_task_dealt_time,
         'player_success_rate': player_success_rate,
         'average_hiding_time': average_hiding_time,
-        'average_running_time': average_running_time,
-        'average_walking_time': average_walking_time,
-        'average_crouching_time': average_crouching_time,
-        'average_jumping_time': average_jumping_time,
         'enemy_count': enemy_count,
         'enemy_spawn_rate': enemy_spawn_rate,
         'average_chase_time': average_chase_time,
