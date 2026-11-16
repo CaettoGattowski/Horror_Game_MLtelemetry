@@ -51,7 +51,7 @@ def generate_dataset( num_samples=NUM_SAMPLES, seed=RANDOM_SEED
     # average time it takes an enemy chasing the player
     average_chase_time = np.clip(20 - 10 * player_skill + 20 * game_pressure + rng.normal(0, 5, num_samples), 0, 30)
     # average time it takes for an enemy to notice the player after spawning
-    average_detection_time = np.clip(10 - 5 * player_skill + 10 * game_pressure + rng.normal(0, 2, num_samples), 0, 20)
+    average_detection_time = np.clip(10 + 5 * player_skill - 10 * game_pressure + rng.normal(0, 2, num_samples), 0, 20)
 
     # ENVIROMENTAL AND PROGRESS FEATURES
     # define parts of the room as dangerous and safe areas, e.g under the bed is safer than the middle of the room
@@ -85,12 +85,12 @@ def generate_dataset( num_samples=NUM_SAMPLES, seed=RANDOM_SEED
         + 0.08 * skill_feature_list["time_survived"]\
         + 0.05 * skill_feature_list["player_noise"]
         + 0.05 * skill_feature_list["player_energy"]
-        + 0.08 * skill_feature_list["average_enemy_dealt_time"]
-        + 0.07 * skill_feature_list["average_task_dealt_time"]
-        + 0.17 * skill_feature_list["player_success_rate"]
+        + 0.10 * skill_feature_list["average_enemy_dealt_time"]
+        + 0.10 * skill_feature_list["average_task_dealt_time"]
+        + 0.16 * skill_feature_list["player_success_rate"]
         + 0.04 * skill_feature_list["average_hiding_time"]
         + 0.04 * skill_feature_list["average_chase_time"]
-        + 0.15 * skill_feature_list["level_task_progress"]
+        + 0.10 * skill_feature_list["level_task_progress"]
     )
 
 
@@ -115,13 +115,13 @@ def generate_dataset( num_samples=NUM_SAMPLES, seed=RANDOM_SEED
         + 0.15 * pressure_feature_list["enemy_count"]
         + 0.05 * pressure_feature_list["average_hiding_time"]
         + 0.10 * pressure_feature_list["task_spawn_timer"]
-        + 0.15 * pressure_feature_list["enemy_spawn_rate"]
-        + 0.10 * pressure_feature_list["average_chase_time"]
+        + 0.20 * pressure_feature_list["enemy_spawn_rate"]
+        + 0.05 * pressure_feature_list["average_chase_time"]
         + 0.10 * pressure_feature_list["average_detection_time"]
         + 0.15 * pressure_feature_list["area_danger_level"]
     )
     # recommended difficulty score based on the skill and pressure scores, we can use this score to recommend a difficulty level for the player
-    recommended_difficulty = np.clip(100 * (0.65 * skill_score + 0.35 * (1 - pressure_score)) + rng.normal(0, 10, num_samples), 0, 100)
+    recommended_difficulty = np.clip(50 + 2 * (100 * (0.65 * skill_score + 0.35 * (1 - pressure_score)) - 50) + rng.normal(0, 10, num_samples), 0, 100)
 
     # TARGET: DIFFICULTY CATEGORY
     # include lowest = True to include the lowest value in the first bin, which is important for our case since we want to include the lowest value of 0 in the 'Easy' category
