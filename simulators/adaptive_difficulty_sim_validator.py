@@ -58,7 +58,7 @@ for feature, (minimum, maximum) in dtv_feature_range.items():
     else:
         print(f"{feature}: {len(invalid_values)} invalid values")
 
-# 6. Check classification labels
+# checks classification labels
 dtv_valid_categories = ["Easy", "Normal", "Hard", "Extreme"]
 
 dtv_invalid_categories = dtv[~dtv["difficulty_category"].isin(dtv_valid_categories)]
@@ -66,7 +66,7 @@ dtv_invalid_categories = dtv[~dtv["difficulty_category"].isin(dtv_valid_categori
 print("\nInvalid difficulty categories:")
 print(len(dtv_invalid_categories))
 
-# 7. Class distribution
+# checks class distribution
 print("\nDifficulty category distribution:")
 
 dtv_class_counts = dtv["difficulty_category"].value_counts()
