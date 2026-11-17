@@ -1,5 +1,6 @@
 import pandas as pd
 
+# loads the dataset
 dataset_path = "datasets/adaptive_difficulty.csv"
 
 dtv = pd.read_csv(dataset_path)
