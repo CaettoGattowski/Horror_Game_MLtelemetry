@@ -5,7 +5,7 @@ from pathlib import Path
 NUM_SAMPLES = 3000
 RANDOM_SEED = 42
 MAX_THREAT_TIME = 120
-OUTPUT_FILE = "datasets/threat_encounter.py"
+OUTPUT_FILE = "datasets/threat_encounter.csv"
 
 # DATASET SIM #
 def generate_dataset( num_samples=NUM_SAMPLES, seed=RANDOM_SEED, max_threat_time=MAX_THREAT_TIME
