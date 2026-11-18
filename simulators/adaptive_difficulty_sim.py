@@ -6,7 +6,6 @@ RANDOM_SEED = 42
 OUTPUT_FILE = "datasets/adaptive_difficulty.csv"
 
 # DATASET SIM #
-
 def generate_dataset( num_samples=NUM_SAMPLES, seed=RANDOM_SEED
 ) -> pd.DataFrame:
     # RANDOM NUMBER GENERATOR
@@ -62,9 +61,7 @@ def generate_dataset( num_samples=NUM_SAMPLES, seed=RANDOM_SEED
     task_spawn_timer = np.clip(30 - 10 * game_pressure + rng.normal(0, 5, num_samples), 0, 60)
 
     # TARGET: RECOMMENDED DIFFICULTY
-
     # Normalized list of skill features (at 0 we have poor skill and at 1 we have expert skill)
-    
     skill_feature_list = {
         "player_health": player_health / 100,
         "player_death_count": 1 - (player_death_count / 10),
@@ -128,7 +125,6 @@ def generate_dataset( num_samples=NUM_SAMPLES, seed=RANDOM_SEED
     difficulty_category = pd.cut(recommended_difficulty, bins=[0, 25, 50, 75, 100], labels=['Easy', 'Normal', 'Hard', 'Extreme'], include_lowest=True)
 
     # CREATE DATAFRAME
-
     dataset = pd.DataFrame({
         'player_health': player_health,
         'player_death_count': player_death_count,
@@ -153,14 +149,13 @@ def generate_dataset( num_samples=NUM_SAMPLES, seed=RANDOM_SEED
     return dataset
 
 # MAIN #
-
 if __name__ == "__main__":
     dataset = generate_dataset()
 
     # save the dataset to a csv file #
     dataset.to_csv(OUTPUT_FILE, index=False)
     print("Dataset generated successfully")
-    # prints length of the dataset to verify the number of samples generated
+    # prints the length of the dataset to verify the number of samples generated
     print(f"Number of samples: {len(dataset)}")
     # prints the number of columns in the dataset to verify the number of features generated
     print(f"Number of columns: {len(dataset.columns)}")
