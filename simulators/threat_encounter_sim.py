@@ -259,3 +259,15 @@ if __name__ == "__main__":
 
     print("\nDuplicate rows:")
     print(dataset.duplicated().sum())
+
+    print("\nTarget values equal to zero:")
+    print((dataset["time_to_next_threat_event"] == 0).sum())
+
+    print("\nTarget values equal to maximum:")
+    print((dataset["time_to_next_threat_event"] == MAX_THREAT_TIME).sum())
+
+    print("\nUnique hiding spot numbers:")
+    print((sorted(dataset["hiding_spot_number"].unique())))
+
+    print("\nUnique task numbers:")
+    print(sorted(dataset["task_number"].unique()))
