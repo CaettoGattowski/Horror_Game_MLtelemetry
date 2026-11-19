@@ -19,36 +19,36 @@ def generate_dataset( num_samples=NUM_SAMPLES, seed=RANDOM_SEED, max_threat_time
         "Stalker": {
             "enemy_speed": 1.0,
             "enemy_acceleration": 2,
-            "enemy_detection_radius": 12,
+            "enemy_detection_radius": 20,
             "enemy_fov": 90,
-            "enemy_sound_sensitivity": 40,
-            "enemy_aggression": 30
+            "enemy_sound_sensitivity": 30,
+            "enemy_aggression": 40
         },
 
         "Hunter": {
             "enemy_speed": 1.5,
             "enemy_acceleration": 4,
-            "enemy_detection_radius": 9,
+            "enemy_detection_radius": 16,
             "enemy_fov": 120,
-            "enemy_sound_sensitivity": 50,
+            "enemy_sound_sensitivity": 40,
             "enemy_aggression": 50
         },
 
         "Pursuer": {
             "enemy_speed": 3.0,
             "enemy_acceleration": 6,
-            "enemy_detection_radius": 6,
+            "enemy_detection_radius": 12,
             "enemy_fov": 180,
-            "enemy_sound_sensitivity": 60,
+            "enemy_sound_sensitivity": 50,
             "enemy_aggression": 70
         },
 
         "Ambusher": {
             "enemy_speed": 0.5,
             "enemy_acceleration": 2,
-            "enemy_detection_radius": 10,
+            "enemy_detection_radius": 14,
             "enemy_fov": 360,
-            "enemy_sound_sensitivity": 40,
+            "enemy_sound_sensitivity": 60,
             "enemy_aggression": 100
         }
     }
@@ -60,7 +60,7 @@ def generate_dataset( num_samples=NUM_SAMPLES, seed=RANDOM_SEED, max_threat_time
     enemy_profiles = rng.choice(profile_names, size=num_samples, p=profile_probabilities)
     profile_counts = pd.Series(enemy_profiles).value_counts()
 
-    # GENERATE ENVIROMENTAL FEATURES
+    # GENERATE ENVIRONMENTAL FEATURES
     # angle the enemy looks around during patrol
     enemy_patrol_angle = rng.uniform(0, 360, num_samples)
     # defines if there is obstacle density in the specific area with yes 1 or no 0
@@ -77,8 +77,8 @@ def generate_dataset( num_samples=NUM_SAMPLES, seed=RANDOM_SEED, max_threat_time
     hiding_spot_number = rng.integers(0, 6, num_samples)
     # checks the distance of all hiding spots in that area
     hiding_spot_distance = rng.uniform(0, 50, num_samples)
-    # defines random noise + player noise that exists in the enviroment
-    enviromental_noise = rng.uniform(0, 100, num_samples)
+    # defines random noise + player noise that exists in the environment
+    environmental_noise = rng.uniform(0, 100, num_samples)
     # checks the number of tasks
     task_number = task_number = rng.integers(0, 21, num_samples)
     
@@ -93,7 +93,7 @@ def generate_dataset( num_samples=NUM_SAMPLES, seed=RANDOM_SEED, max_threat_time
     # GENERATE INTERNAL SIMULATION VARIABLES
     # these variables are not saved as dataset input features
     # distance between player and enemy
-    player_enemy_distance = rng.uniform(1, 50, num_samples)
+    player_enemy_distance = rng.uniform(1, 30, num_samples)
     # the player's direction is defined as 0 degress in the coordinate system
     player_bearing = 0.0
     # calculates the smallest angular difference between the enemy's patrol direction and the player's direcrion
@@ -121,7 +121,7 @@ def generate_dataset( num_samples=NUM_SAMPLES, seed=RANDOM_SEED, max_threat_time
         hiding_number = hiding_spot_number[i]
         hiding_distance = hiding_spot_distance[i]
 
-        noise = enviromental_noise[i]
+        noise = environmental_noise[i]
         tasks = task_number[i]
 
         sound_sensitivity = enemy_sound_sensitivity[i]
@@ -182,24 +182,24 @@ def generate_dataset( num_samples=NUM_SAMPLES, seed=RANDOM_SEED, max_threat_time
         relative_angle = relative_enemy_angle[i]
 
         detection_radius = enemy_detection_radius[i]
-        field_of_view = enemy_fov[i]
+        field_of_detection = enemy_fov[i]
 
         sound_sensitivity = enemy_sound_sensitivity[i]
         aggression = enemy_aggression[i]
 
         # obstacles reduce effective visibility
-        effective_visibility = (visibility_distance[i] * (1 - 0.5 * obstacle_density[i]))
+        effective_visibility = (visibility_distance[i] * (1 - 0.2 * obstacle_density[i]))
 
         # visual detection conditions
-        visual_detection = (distance <= detection_radius and distance <= effective_visibility and relative_angle <= field_of_view / 2 and lighting_intensity[i] > 20)
+        visual_detection = (distance <= detection_radius and distance <= effective_visibility and relative_angle <= field_of_detection * 2 and lighting_intensity[i] > 25)
 
         # sound detection conditions
-        sound_detection = (enviromental_noise[i] * sound_sensitivity / 100 > 25)
+        sound_detection = (2 * environmental_noise[i] * sound_sensitivity / 100 > 40)
 
         # ambushers can attack at close range even withhout the usual visual detection condition
         ambush_attack = (profile == "Ambusher" and distance <= detection_radius and aggression >= 90) 
 
-        if ( visual_detection and distance < 5 and aggression >= 60) or ambush_attack:
+        if ( visual_detection and distance < 8 and aggression >= 40) or ambush_attack:
             category = "Attack"
         elif visual_detection:
             category = "Chase"
@@ -219,14 +219,14 @@ def generate_dataset( num_samples=NUM_SAMPLES, seed=RANDOM_SEED, max_threat_time
         'enemy_fov': enemy_fov,
         'enemy_sound_sensitivity': enemy_sound_sensitivity,
 
-        'obstance_density': obstacle_density,
+        'obstacle_density': obstacle_density,
         'corridor_width': corridor_width,
         'visibility_distance': visibility_distance,
         'lighting_intensity': lighting_intensity,
         'area_hiding_spot_availability': area_hiding_spot_availability,
         'hiding_spot_number': hiding_spot_number,
         'hiding_spot_distance': hiding_spot_distance,
-        'enviromental_noise': enviromental_noise,
+        'environmental_noise': environmental_noise,
         'task_number': task_number,
 
         'time_to_next_threat_event': time_to_next_threat_event,
