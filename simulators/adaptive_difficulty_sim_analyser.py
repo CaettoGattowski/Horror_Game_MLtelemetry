@@ -29,7 +29,7 @@ dta_input_features = [
 
 dta_target = "recommended_difficulty"
 
-# calculate the pearson correlation for input features with target
+# calculates the pearson correlation for input features with target
 dta_correlation_matrix = dta[dta_input_features + [dta_target]].corr(method="pearson")
 
 # correlation with target
@@ -46,17 +46,17 @@ sns.heatmap(dta_correlation_matrix, annot=True, annot_kws={"size": 17}, fmt=".2f
 plt.title("Adaptive Difficulty - Pearson Correlation Heatmap")
 plt.tight_layout()
 
-plt.savefig("reports/project_A_SVR/adaptive_difficulty_correlation.png", dpi=300)
+plt.savefig("reports/simulators/adaptive_difficulty_correlation.png", dpi=300)
 
 
-# calculate the multicollinearity for input features only
+# calculates the multicollinearity for input features only
 dta_feature_correlation_matrix = dta[dta_input_features].corr(method="pearson")
 threshold = 0.8
 
 high_correlations = []
 
 for i in range(len(dta_input_features)):
-    for j in range(i +1, len(dta_input_features)):
+    for j in range(i + 1, len(dta_input_features)):
         correlation = dta_feature_correlation_matrix.iloc[i,j]
 
         if abs(correlation) >= threshold:
@@ -79,4 +79,4 @@ sns.heatmap(dta_feature_correlation_matrix, annot=True, annot_kws={"size": 17}, 
 plt.title("Input Features - Pearson Correlation Heatmap")
 plt.tight_layout()
 
-plt.savefig("reports/project_A_SVR/adaptive_difficulty_feature_correlation.png", dpi=300)
+plt.savefig("reports/simulators/adaptive_difficulty_feature_correlation.png", dpi=300)
