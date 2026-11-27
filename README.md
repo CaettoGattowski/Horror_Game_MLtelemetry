@@ -119,7 +119,7 @@ The experiments investigate:
 - Regression performance using R², MAE, and RMSE
 
 Comparative visualizations are generated to summarize the results across datasets and tasks.
-
+The following figure showcases the comparison of the results across 30k samples of Dataset 1 and 3k samples of Dataset 2
 ![alt text](image.png)
 
 ## Goals
