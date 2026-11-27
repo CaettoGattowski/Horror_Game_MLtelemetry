@@ -1,5 +1,3 @@
-# horror_telemetry_ml
- 
 # Horror Game Telemetry & Machine Learning
 
 ## Overview
