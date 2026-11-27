@@ -48,7 +48,7 @@ SVR_PARAMETERS = {
 
 # HYPERPARAMETER TUNING
 # SOS
-TUNE = False # false = baseline fixed, True = tuned
+TUNE = True # false = baseline fixed, True = tuned
 
 TUNING_SIZE = {
     "adaptive_difficulty": 10000,
@@ -396,6 +396,45 @@ def create_summary(results_df):
         dropna=False)[available_metrics].agg(["mean", "std"]).reset_index())
 
     return summary_df
+
+# Parameter PRINT
+
+def print_tuned_parameters(results_df):
+
+    tuned_df = results_df[results_df["tuned"] == True]
+
+    if tuned_df.empty:
+        print("\nNo tuned parameters found.")
+        return
+
+    print("\n" + "=" * 70)
+    print("BEST TUNED PARAMETERS")
+    print("=" * 70)
+
+    # Avoid repeating the same configuration for every training size
+    tuned_df = tuned_df.drop_duplicates(
+        subset=["dataset", "task", "kernel", "fold", "hyperparameters"]
+    )
+
+    for (dataset, task, kernel, fold), group in tuned_df.groupby(
+        ["dataset", "task", "kernel", "fold"]
+    ):
+
+        params = json.loads(group.iloc[0]["hyperparameters"])
+
+        # Keep only hyperparameters that were part of the tuning grid
+        tuned_keys = set(PARAMETER_GRID[kernel][0].keys())
+
+        print(f"\nDataset: {dataset}")
+        print(f"Task: {task}")
+        print(f"Kernel: {kernel}")
+        print(f"Fold: {fold}")
+
+        print("Parameters:")
+        for key, value in params.items():
+            if key != "max_iter" and key != "tol":
+                print(f"    {key}: {value}")
+
 # MAIN
 
 def run_evaluation():
@@ -404,9 +443,9 @@ def run_evaluation():
 
     for dataset_name, tasks in DATASETS.items():
 
-        print("\n" + "=" * 80)
+        print("\n" + "=" * 70)
         print(f"DATASET: {dataset_name}")
-        print("=" * 80)
+        print("=" * 70)
 
         # Classification
         classification_folds = tasks["classification"]()
@@ -436,6 +475,9 @@ def run_evaluation():
 
     # save raw results
     results_df.to_csv(raw_output_path, index=False)
+
+    if TUNE:
+        print_tuned_parameters(results_df)
 
     # save summary
     summary_df = create_summary(results_df)
