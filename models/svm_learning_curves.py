@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-RESULTS_PATH = (PROJECT_ROOT / "reports" / "project_A_SVM" / "svm_evaluation_results.csv")
+RESULTS_PATH = (PROJECT_ROOT / "reports" / "project_A_SVM" / "tuned_svm_evaluation_results.csv") # Baseline or Tuned
 
 OUTPUT_DIR = (PROJECT_ROOT / "reports" / "project_A_SVM" / "svm_learning_curves")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
