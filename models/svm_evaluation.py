@@ -21,7 +21,7 @@ from preprocessing.threat_encounter_classification_preprocessing  import (get_fo
 # CONFIG
 # controlled training size
 
-TRAINING_SIZES = [250, 500, 1000, 2000, 10000, 200000, 300000]
+TRAINING_SIZES = [250, 500, 1000, 2000, 10000, 20000, 30000]
 RANDOM_STATE=42
 
 KERNELS = ["linear", "polynomial", "rbf", "combined"]
