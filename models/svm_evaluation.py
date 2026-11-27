@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from sklearn.model_selection import KFold
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import (accuracy_score, f1_score, confusion_matrix, mean_absolute_error, mean_squared_error, r2_score)
 
@@ -44,6 +45,42 @@ SVR_PARAMETERS = {
     "tol":1e-3,
     "max_iter": 5000
 }
+
+# HYPERPARAMETER TUNING
+# SOS
+TUNE = False # false = baseline fixed, True = tuned
+
+TUNING_SIZE = {
+    "adaptive_difficulty": 10000,
+    "threat_encounter": 2400
+}
+
+TUNING_FOLDS = 3
+
+PARAMETER_GRID = {
+    "linear": [
+        {"C": 0.1},
+        {"C": 1.0},
+        {"C": 10.0}
+    ],
+
+    "polynomial": [
+        {"C": 1.0, "gamma": 0.01, "degree": 2, "coef0": 0.0},
+        {"C": 1.0, "gamma": 0.1, "degree": 3, "coef0": 1.0},
+        {"C": 10.0, "gamma": 0.01, "degree": 3, "coef0": 1.0},
+    ],
+    "rbf": [
+        {"C": 1.0, "gamma": 0.01},
+        {"C": 10.0, "gamma": 0.01},
+        {"C": 10.0, "gamma": 0.1},
+    ],
+    "combined": [
+        {"C": 1.0, "gamma": 0.01, "degree": 2,"coef0": 0.0, "alpha": 0.25},
+        {"C": 1.0, "gamma": 0.1, "degree": 3, "coef0": 1.0, "alpha": 0.5},
+        {"C": 10.0, "gamma": 0.01, "degree": 3, "coef0": 1.0, "alpha": 0.75},
+    ]
+}
+
 
 # DATASETS / FOLDS
 
@@ -91,6 +128,86 @@ def prepare_training_subset(fold_data, training_size, fold, random_state=RANDOM_
         actual_training_size,
     )
 
+# HYPERPARAMETER TUNING
+
+def tune_parameters(X_raw, y, task, dataset_name, fold):
+
+    tuning_size = min(TUNING_SIZE[dataset_name], len(X_raw))
+
+    rng = np.random.default_rng(RANDOM_STATE + fold)
+    indices = rng.permutation(len(X_raw))[:tuning_size]
+
+    X_raw = X_raw.iloc[indices].reset_index(drop=True)
+    y = y.iloc[indices].reset_index(drop=True)
+
+    inner_cv = KFold(n_splits = TUNING_FOLDS, shuffle=True, random_state=RANDOM_STATE)
+
+    best_parameters = {}
+
+    for kernel in KERNELS:
+
+        best_score = -np.inf
+        best_params = None
+
+        for candidate in PARAMETER_GRID[kernel]:
+
+            fold_scores = []
+
+            for train_idx, val_idx in inner_cv.split(X_raw):
+
+                X_inner_train = X_raw.iloc[train_idx]
+                X_inner_val = X_raw.iloc[val_idx]
+
+                y_inner_train = y.iloc[train_idx]
+                y_inner_val = y.iloc[val_idx]
+
+                scaler = StandardScaler()
+
+                X_inner_train_scaled = scaler.fit_transform(X_inner_train)
+                X_inner_val_scaled = scaler.transform(X_inner_val)
+
+                # default params + candidate params
+                if task == "classification":
+                    params = SVM_PARAMETERS.copy()
+                else:
+                    params = SVR_PARAMETERS.copy()
+                
+                params.update(candidate)
+
+                model = (
+                    SVCmodel(kernel=kernel, **params)
+                    if task == "classification"
+                    else SVRmodel(kernel=kernel, **params))
+
+                model.fit(X_inner_train_scaled, y_inner_train)
+
+                predictions = model.predict(X_inner_val_scaled)
+
+                if task == "classification":
+                    score = f1_score(y_inner_val, predictions, average="macro", zero_division=0)
+                else:
+                    score = r2_score(y_inner_val, predictions)
+
+                fold_scores.append(score)
+            
+            mean_score = np.mean(fold_scores)
+
+            print(
+                f"Tuning | {dataset_name} | {task} | "
+                f"Fold {fold} | {kernel} | "
+                f"{candidate} | Score: {mean_score:.4f}"
+            )
+
+            if mean_score > best_score:
+                best_score = mean_score
+                best_params = candidate.copy()
+
+        best_parameters[kernel] = {**best_params, "tuning_score": best_score}
+
+        print(f"\nBEST {kernel}: {best_parameters[kernel]}\n")
+
+    return best_parameters
+
 # METRICS
 
 def classification_metrics(y_true, y_pred):
@@ -117,6 +234,21 @@ def evaluate_svm(dataset_name, folds):
 
         fold = fold_data["fold"]
 
+        if TUNE:
+            tuned_parameters = tune_parameters(
+                X_raw=fold_data["X_train_raw"],
+                y=fold_data["y_train"],
+                task="classification",
+                dataset_name=dataset_name,
+                fold=fold
+            )
+
+        sizes_to_run = (
+            [TUNING_SIZE[dataset_name]]
+            if TUNE
+            else TRAINING_SIZES
+            )
+
         for training_size in TRAINING_SIZES:
 
             (X_train, X_validate, y_train, y_validate, actual_training_size) = prepare_training_subset(fold_data, training_size, fold)
@@ -127,7 +259,16 @@ def evaluate_svm(dataset_name, folds):
                 f"Fold {fold} | Training size {actual_training_size} |" 
                 f"Kernel {kernel}")
 
-                model = SVCmodel(kernel=kernel, **SVM_PARAMETERS)
+                if TUNE:
+                    params = SVM_PARAMETERS.copy()
+                    params.update(tuned_parameters[kernel])
+
+                    
+                    params.pop("tuning_score", None)
+
+                    model = SVCmodel(kernel=kernel, **params)
+                else:
+                    model = SVCmodel(kernel=kernel, **SVM_PARAMETERS)
 
                 start_time = time.perf_counter()
                 model.fit(X_train, y_train)
@@ -144,6 +285,8 @@ def evaluate_svm(dataset_name, folds):
                     "kernel": kernel,
                     "fold": fold,
                     "training_size": actual_training_size,
+                    "tuned": TUNE,
+                    "hyperparameters": json.dumps(params if TUNE else SVM_PARAMETERS),
                     "training_time_seconds": training_time,
                     "accuracy": metrics["accuracy"],
                     "macro_f1": metrics["macro_f1"],
@@ -162,6 +305,21 @@ def evaluate_svr(dataset_name, folds):
 
         fold = fold_data["fold"]
 
+        if TUNE:
+            tuned_parameters = tune_parameters(
+                X_raw=fold_data["X_train_raw"],
+                y=fold_data["y_train"],
+                task="regression",
+                dataset_name=dataset_name,
+                fold=fold
+            )
+
+        sizes_to_run = (
+            [TUNING_SIZE[dataset_name]]
+            if TUNE
+            else TRAINING_SIZES
+            )
+
         for training_size in TRAINING_SIZES:
 
             (X_train, X_validate, y_train, y_validate, actual_training_size) = prepare_training_subset(fold_data, training_size, fold)
@@ -173,7 +331,15 @@ def evaluate_svr(dataset_name, folds):
                     f"Fold {fold} | Training size {actual_training_size} |"
                     f"Kernel {kernel}")
 
-                model = SVRmodel(kernel=kernel,**SVR_PARAMETERS)
+                if TUNE:
+                    params = SVR_PARAMETERS.copy()
+                    params.update(tuned_parameters[kernel])
+
+                    params.pop("tuning_score", None)
+
+                    model = SVRmodel(kernel=kernel, **params)
+                else:
+                    model = SVRmodel(kernel=kernel, **SVR_PARAMETERS)
 
                 start_time = time.perf_counter()
                 model.fit(X_train, y_train)
@@ -190,6 +356,8 @@ def evaluate_svr(dataset_name, folds):
                     "kernel": kernel,
                     "fold": fold,
                     "training_size": actual_training_size,
+                    "tuned": TUNE,
+                    "hyperparameters": json.dumps(params if TUNE else SVR_PARAMETERS),
                     "training_time_seconds": training_time,
                     "r2": metrics["r2"],
                     "mae": metrics["mae"],
@@ -222,7 +390,8 @@ def create_summary(results_df):
             "task",
             "model",
             "kernel",
-            "training_size"
+            "training_size",
+            "tuned"
         ],
         dropna=False)[available_metrics].agg(["mean", "std"]).reset_index())
 
@@ -270,6 +439,7 @@ def run_evaluation():
 
     # save summary
     summary_df = create_summary(results_df)
+    summary_df.to_csv(summary_output_path, index=False)
 
     # final output
     print("\n" + "=" * 80)
